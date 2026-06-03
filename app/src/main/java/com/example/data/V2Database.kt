@@ -40,6 +40,9 @@ interface V2RayDao {
     @Query("SELECT * FROM subscriptions ORDER BY id DESC")
     fun getAllSubscriptions(): Flow<List<SubscriptionEntity>>
 
+    @Query("SELECT * FROM subscriptions WHERE url = :url LIMIT 1")
+    suspend fun getSubscriptionByUrl(url: String): SubscriptionEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSubscription(sub: SubscriptionEntity): Long
 

@@ -81,6 +81,48 @@ class V2Repository(private val v2rayDao: V2RayDao) {
     }
 
     /**
+     * Parses and adds a single configuration uri (vmess, vless, ss, trojan) to a common group.
+     */
+    suspend fun addSingleConfig(url: String, customName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val trimmedUrl = url.trim()
+            if (trimmedUrl.isEmpty()) {
+                return@withContext Result.failure(Exception("آدرس کانفیگ نمی‌تواند خالی باشد"))
+            }
+
+            // Find or create "کانفیگ‌های دستی" subscription group
+            val groupUrl = "manual://local"
+            var group = v2rayDao.getSubscriptionByUrl(groupUrl)
+            if (group == null) {
+                val newGroup = SubscriptionEntity(
+                    url = groupUrl,
+                    name = "کانفیگ‌های دستی",
+                    lastFetched = System.currentTimeMillis()
+                )
+                val newId = v2rayDao.insertSubscription(newGroup).toInt()
+                group = SubscriptionEntity(id = newId, url = groupUrl, name = "کانفیگ‌های دستی")
+            }
+
+            // Parse node
+            val parsedNode = V2Parser.parseNodeUrl(group.id, trimmedUrl)
+                ?: return@withContext Result.failure(Exception("قالب پروتکل پشتیبانی نمی‌شود یا نامعتبر است (vmess, vless, ss, trojan)"))
+
+            // If a custom name is specified, override the parsed name
+            val finalNode = if (customName.trim().isNotEmpty()) {
+                parsedNode.copy(name = customName.trim())
+            } else {
+                parsedNode
+            }
+
+            v2rayDao.insertNodes(listOf(finalNode))
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("V2Repository", "Error adding single config", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Deletes a subscription and its associated nodes automatically via cascade delete.
      */
     suspend fun deleteSubscription(subId: Int) = withContext(Dispatchers.IO) {

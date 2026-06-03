@@ -1,9 +1,14 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Intent
+import android.net.VpnService
+import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import com.example.V2VpnManager
+import com.example.V2RayVpnService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -40,35 +45,31 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAddingSubscription = MutableStateFlow(false)
     val isAddingSubscription: StateFlow<Boolean> = _isAddingSubscription.asStateFlow()
 
+    private val _addSingleConfigError = MutableStateFlow<String?>(null)
+    val addSingleConfigError: StateFlow<String?> = _addSingleConfigError.asStateFlow()
+
+    private val _isAddingSingleConfig = MutableStateFlow(false)
+    val isAddingSingleConfig: StateFlow<Boolean> = _isAddingSingleConfig.asStateFlow()
+
     // 5-Minutes Autorefresh Ping Timer State (300 seconds)
     private val _nextRefreshSeconds = MutableStateFlow(300)
     val nextRefreshSeconds: StateFlow<Int> = _nextRefreshSeconds.asStateFlow()
 
-    // Connection states
-    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+    // Connection states tied directly to the real system VpnService
+    val connectionState: StateFlow<ConnectionState> = V2VpnManager.connectionState
+    val activeNode: StateFlow<V2RayNodeEntity?> = V2VpnManager.activeNode
+    val connectionDurationSeconds: StateFlow<Int> = V2VpnManager.connectionDurationSeconds
+    val downloadSpeedKb: StateFlow<Float> = V2VpnManager.downloadSpeedKb
+    val uploadSpeedKb: StateFlow<Float> = V2VpnManager.uploadSpeedKb
+    val totalDownloadedMb: StateFlow<Float> = V2VpnManager.totalDownloadedMb
+    val totalUploadedMb: StateFlow<Float> = V2VpnManager.totalUploadedMb
 
-    private val _activeNode = MutableStateFlow<V2RayNodeEntity?>(null)
-    val activeNode: StateFlow<V2RayNodeEntity?> = _activeNode.asStateFlow()
+    private val _vpnPermissionIntent = MutableStateFlow<Intent?>(null)
+    val vpnPermissionIntent: StateFlow<Intent?> = _vpnPermissionIntent.asStateFlow()
 
-    // Telemetry stats updated every second when connected
-    private val _connectionDurationSeconds = MutableStateFlow(0)
-    val connectionDurationSeconds: StateFlow<Int> = _connectionDurationSeconds.asStateFlow()
-
-    private val _downloadSpeedKb = MutableStateFlow(0f) // KB/s
-    val downloadSpeedKb: StateFlow<Float> = _downloadSpeedKb.asStateFlow()
-
-    private val _uploadSpeedKb = MutableStateFlow(0f) // KB/s
-    val uploadSpeedKb: StateFlow<Float> = _uploadSpeedKb.asStateFlow()
-
-    private val _totalDownloadedMb = MutableStateFlow(0f) // MBs accumulated
-    val totalDownloadedMb: StateFlow<Float> = _totalDownloadedMb.asStateFlow()
-
-    private val _totalUploadedMb = MutableStateFlow(0f) // MBs accumulated
-    val totalUploadedMb: StateFlow<Float> = _totalUploadedMb.asStateFlow()
+    private var pendingNodeToConnect: V2RayNodeEntity? = null
 
     private var countdownJob: Job? = null
-    private var telemetryJob: Job? = null
 
     init {
         startRefreshCountdown()
@@ -142,10 +143,39 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun addSingleConfig(url: String, customName: String, onSuccess: () -> Unit) {
+        val cleanUrl = url.trim()
+        if (cleanUrl.isEmpty()) {
+            _addSingleConfigError.value = "آدرس کانفیگ نمی‌تواند خالی باشد"
+            return
+        }
+
+        viewModelScope.launch {
+            _isAddingSingleConfig.value = true
+            _addSingleConfigError.value = null
+            
+            val result = repository.addSingleConfig(cleanUrl, customName)
+            _isAddingSingleConfig.value = false
+            
+            if (result.isSuccess) {
+                _addSingleConfigError.value = null
+                onSuccess()
+                // Auto ping sweep straight after imports to instantly bring best to top!
+                triggerPingSweep()
+            } else {
+                _addSingleConfigError.value = result.exceptionOrNull()?.message ?: "خطا در افزودن کانفیگ"
+            }
+        }
+    }
+
+    fun clearAddSingleConfigError() {
+        _addSingleConfigError.value = null
+    }
+
     fun deleteSubscription(id: Int) {
         viewModelScope.launch {
             // If active connection belongs to a node of this sub, disconnect first
-            val currentActive = _activeNode.value
+            val currentActive = activeNode.value
             if (currentActive != null && currentActive.subscriptionId == id) {
                 disconnect()
             }
@@ -155,53 +185,54 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
 
     fun connectToNode(node: V2RayNodeEntity) {
         viewModelScope.launch {
-            disconnect() // disconnect any active before connecting new
+            disconnect() // Stop any active first
             
-            _activeNode.value = node
-            _connectionState.value = ConnectionState.CONNECTING
-            
-            // Simulating authentic handshakes, tunnel preparation, routing setup
-            delay(1200)
-            _connectionState.value = ConnectionState.CONNECTED
-            
-            startTelemetry()
+            pendingNodeToConnect = node
+            val prepareIntent = VpnService.prepare(getApplication())
+            if (prepareIntent != null) {
+                // Return intent back through flow to prompt the OS VPN permission popup
+                _vpnPermissionIntent.value = prepareIntent
+            } else {
+                // VPN was already approved by user in local settings
+                startVpnTunnel(node)
+            }
+        }
+    }
+
+    fun onVpnPermissionResult(isGranted: Boolean) {
+        val node = pendingNodeToConnect
+        _vpnPermissionIntent.value = null
+        pendingNodeToConnect = null
+        
+        if (isGranted && node != null) {
+            startVpnTunnel(node)
+        }
+    }
+
+    private fun startVpnTunnel(node: V2RayNodeEntity) {
+        val context = getApplication<Application>()
+        val intent = Intent(context, V2RayVpnService::class.java).apply {
+            action = V2RayVpnService.ACTION_CONNECT
+            putExtra(V2RayVpnService.EXTRA_NODE_ID, node.id)
+            putExtra(V2RayVpnService.EXTRA_NODE_NAME, node.name)
+            putExtra(V2RayVpnService.EXTRA_NODE_ADDRESS, node.address)
+            putExtra(V2RayVpnService.EXTRA_NODE_PORT, node.port)
+            putExtra(V2RayVpnService.EXTRA_NODE_PROTOCOL, node.protocol)
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
         }
     }
 
     fun disconnect() {
-        telemetryJob?.cancel()
-        _connectionState.value = ConnectionState.DISCONNECTED
-        _activeNode.value = null
-        _connectionDurationSeconds.value = 0
-        _downloadSpeedKb.value = 0f
-        _uploadSpeedKb.value = 0f
-        _totalDownloadedMb.value = 0f
-        _totalUploadedMb.value = 0f
-    }
-
-    private fun startTelemetry() {
-        telemetryJob?.cancel()
-        telemetryJob = viewModelScope.launch {
-            while (_connectionState.value == ConnectionState.CONNECTED) {
-                delay(1000)
-                _connectionDurationSeconds.value += 1
-                
-                // Simulate throughput calculations with natural micro-fluctuations
-                // e.g. normal proxy usage averages 150KB/s - 3MB/s download, 10KB/s - 150KB/s upload
-                val downFactor = if (Math.random() > 0.85) 4.2f else 1.1f // sudden spikes
-                val upFactor = if (Math.random() > 0.9) 3.1f else 0.8f
-                
-                val currentDown = (180f + (Math.random() * 450f).toFloat()) * downFactor
-                val currentUp = (12f + (Math.random() * 45f).toFloat()) * upFactor
-                
-                _downloadSpeedKb.value = currentDown
-                _uploadSpeedKb.value = currentUp
-                
-                // Accumulate volume in Megabytes (KB / 1024)
-                _totalDownloadedMb.value += (currentDown / 1024f)
-                _totalUploadedMb.value += (currentUp / 1024f)
-            }
+        val context = getApplication<Application>()
+        val intent = Intent(context, V2RayVpnService::class.java).apply {
+            action = V2RayVpnService.ACTION_DISCONNECT
         }
+        context.startService(intent)
     }
 
     fun clearAddSubscriptionError() {
@@ -211,6 +242,5 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         countdownJob?.cancel()
-        telemetryJob?.cancel()
     }
 }

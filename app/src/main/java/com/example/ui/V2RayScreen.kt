@@ -753,6 +753,153 @@ fun NodeListItem(
     }
 }
 
+@Composable
+fun SimulatedQRScanner(
+    onCodeScanned: (String) -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "scanner")
+    val offsetY by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 180f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "sweeper"
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF0F172A)) // Slate 900
+            .padding(14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "شبیه‌ساز هوشمند اسکنر QR کد",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White.copy(alpha = 0.9f)
+        )
+        Text(
+            text = "در حال جستجو و تحلیل تصویر کانفیگ...",
+            fontSize = 9.sp,
+            color = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        // The camera view representation
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .border(2.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                .padding(4.dp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            // Sweep scan line
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .offset(y = offsetY.dp)
+                    .background(Color(0xFF22C55E)) // Green laser
+            )
+
+            // Scanning bounds indicator
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .align(Alignment.Center)
+                    .border(1.dp, Color(0xFF22C55E).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "scanning",
+                    tint = Color.White.copy(alpha = 0.12f),
+                    modifier = Modifier
+                        .size(64.dp)
+                        .align(Alignment.Center)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+        
+        Text(
+            text = "جهت تست سریع، یکی از نمونه کدهای زیر را اسکن کنید:",
+            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.7f),
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Actions grouped elegantly
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Button(
+                onClick = {
+                    val sampleVmess = "vmess://eyJhZGQiOiI4OC4xOTguNy4xMDYiLCJhaWQiOiIwIiwiaG9zdCI6IiIsImlkIjoiZjI4ODU2YWQtNWI3Yy00MTk2LWJmYWYtZTc5MmRhMjg4OTJjIiwibmV0Ijoid3MiLCJwYXRoIjoiLyIsInBvcnQiOjQ0MywicHMiOiLQotC10YHRgiBWTS1VUy0wMSIsInF0eXBlIjoiIiwic2N5IjoiYXV0byIsInNuaSI6IiIsInRscyI6InRscyIsInR5cGUiOiIiLCJ2IjoiMiJ9"
+                    onCodeScanned(sampleVmess)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("اسکن VMess", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = {
+                    val sampleVless = "vless://4e9ad22c-caf6-4b2a-89a5-aa38217bb8dc@198.51.100.54:443?type=tcp&security=tls#DE-München-02"
+                    onCodeScanned(sampleVless)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("اسکن VLESS", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Button(
+                onClick = {
+                    val sampleSs = "ss://YWVzLTI1Ni1nY206c29tZXNhZmVwYXNzd29yZA==@203.0.113.88:8388#TR-Istanbul-SS"
+                    onCodeScanned(sampleSs)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("اسکن Shadowsocks", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = {
+                    val sampleTrojan = "trojan://superstrongpassword@8.8.8.8:443?security=tls#SG-Trojan-Hub"
+                    onCodeScanned(sampleTrojan)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("اسکن Trojan", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionManagerDialog(
@@ -760,11 +907,21 @@ fun SubscriptionManagerDialog(
     onDismiss: () -> Unit
 ) {
     val subscriptions by viewModel.subscriptions.collectAsStateWithLifecycle()
+    
+    // Tab 0 states
     val isAdding by viewModel.isAddingSubscription.collectAsStateWithLifecycle()
     val addError by viewModel.addSubscriptionError.collectAsStateWithLifecycle()
-
     var subUrl by remember { mutableStateOf("") }
     var subName by remember { mutableStateOf("") }
+
+    // Tab 1 states
+    val isAddingSingle by viewModel.isAddingSingleConfig.collectAsStateWithLifecycle()
+    val addSingleError by viewModel.addSingleConfigError.collectAsStateWithLifecycle()
+    var singleUrl by remember { mutableStateOf("") }
+    var singleName by remember { mutableStateOf("") }
+
+    // Tab tracking: 0: Subscription, 1: Single Config, 2: scan QR
+    var selectedTab by remember { mutableStateOf(0) }
 
     val clipboardManager = LocalClipboardManager.current
 
@@ -788,7 +945,7 @@ fun SubscriptionManagerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "مدیریت ساب‌لینک‌ها",
+                        text = "افزودن سرور و کانفیگ",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = BentoTextPrimary
@@ -802,88 +959,226 @@ fun SubscriptionManagerDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                // Paste zone
-                OutlinedTextField(
-                    value = subUrl,
-                    onValueChange = { 
-                        subUrl = it
-                        viewModel.clearAddSubscriptionError()
-                    },
-                    label = { Text("لینک ساب V2Ray") },
-                    placeholder = { Text("https://example.com/sub/...") },
+                // Custom Bento Tab Pills
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("sub_url_field"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    trailingIcon = {
-                        IconButton(
-                            onClick = {
-                                clipboardManager.getText()?.text?.let { clipboardText ->
-                                    subUrl = clipboardText
-                                    viewModel.clearAddSubscriptionError()
-                                }
-                            }
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(BentoLightGrayBg)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val tabs = listOf("لینک اشتراک", "کانفیگ تکی", "اسکن QR")
+                    tabs.forEachIndexed { idx, label ->
+                        val isSelected = selectedTab == idx
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isSelected) Color.White else Color.Transparent)
+                                .border(
+                                    width = if (isSelected) 1.dp else 0.dp,
+                                    color = if (isSelected) BentoBorder else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable { selectedTab = idx }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "چسباندن از حافظه"
+                            Text(
+                                text = label,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) BentoAccentBlue else BentoTextMuted
                             )
                         }
                     }
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = subName,
-                    onValueChange = { subName = it },
-                    label = { Text("نام اشتراک (اختیاری)") },
-                    placeholder = { Text("سرورهای من") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                if (addError != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = addError ?: "",
-                        color = Color.Red,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                Button(
-                    onClick = {
-                        viewModel.addSubscription(subUrl, subName) {
-                            subUrl = ""
-                            subName = ""
+                // Tab 0 view: subscription
+                if (selectedTab == 0) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = subUrl,
+                            onValueChange = { 
+                                subUrl = it
+                                viewModel.clearAddSubscriptionError()
+                            },
+                            label = { Text("لینک ساب V2Ray") },
+                            placeholder = { Text("https://example.com/sub/...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("sub_url_field"),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.getText()?.text?.let { clipboardText ->
+                                            subUrl = clipboardText
+                                            viewModel.clearAddSubscriptionError()
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "چسباندن"
+                                    )
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = subName,
+                            onValueChange = { subName = it },
+                            label = { Text("نام اشتراک (اختیاری)") },
+                            placeholder = { Text("سرورهای من") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        if (addError != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = addError ?: "",
+                                color = Color.Red,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .testTag("add_sub_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = BentoAccentBlue),
-                    enabled = !isAdding && subUrl.isNotEmpty()
-                ) {
-                    if (isAdding) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = Color.White
-                        )
-                    } else {
-                        Text(
-                            text = "بارگیری و اضافه کردن",
-                            fontWeight = FontWeight.Bold
-                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = {
+                                viewModel.addSubscription(subUrl, subName) {
+                                    subUrl = ""
+                                    subName = ""
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("add_sub_button"),
+                            colors = ButtonDefaults.buttonColors(containerColor = BentoAccentBlue),
+                            enabled = !isAdding && subUrl.isNotEmpty()
+                        ) {
+                            if (isAdding) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text(
+                                    text = "بارگیری و اضافه کردن",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
+                }
+
+                // Tab 1 view: Single custom config
+                if (selectedTab == 1) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = singleUrl,
+                            onValueChange = { 
+                                singleUrl = it
+                                viewModel.clearAddSingleConfigError()
+                            },
+                            label = { Text("آدرس کانفیگ تکی V2Ray") },
+                            placeholder = { Text("vmess://... یا vless://... یا ss://... ya trojan://...") },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("single_config_field"),
+                            maxLines = 3,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        clipboardManager.getText()?.text?.let { clipboardText ->
+                                            singleUrl = clipboardText
+                                            viewModel.clearAddSingleConfigError()
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "چسباندن"
+                                    )
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = singleName,
+                            onValueChange = { singleName = it },
+                            label = { Text("نام دلخواه سرور (اختیاری)") },
+                            placeholder = { Text("سرور پرسرعت آلمان") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        if (addSingleError != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = addSingleError ?: "",
+                                color = Color.Red,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            onClick = {
+                                viewModel.addSingleConfig(singleUrl, singleName) {
+                                    singleUrl = ""
+                                    singleName = ""
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("add_single_config_button"),
+                            colors = ButtonDefaults.buttonColors(containerColor = BentoAccentBlue),
+                            enabled = !isAddingSingle && singleUrl.isNotEmpty()
+                        ) {
+                            if (isAddingSingle) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Text(
+                                    text = "ثبت و ذخیره کانفیگ",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Tab 2 view: QR scanner
+                if (selectedTab == 2) {
+                    SimulatedQRScanner(
+                        onCodeScanned = { scannedCode ->
+                            singleUrl = scannedCode
+                            selectedTab = 1 // Switch directly to Tab 1 with prefilled url!
+                        }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -904,7 +1199,7 @@ fun SubscriptionManagerDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 180.dp)
+                        .heightIn(max = 140.dp)
                 ) {
                     if (subscriptions.isEmpty()) {
                         Box(
