@@ -17,6 +17,9 @@ import com.example.ui.theme.MyApplicationTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
 class MainActivity : ComponentActivity() {
   private val viewModel: V2ViewModel by viewModels()
 
@@ -40,7 +43,8 @@ class MainActivity : ComponentActivity() {
     }
 
     setContent {
-      MyApplicationTheme {
+      val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+      MyApplicationTheme(darkTheme = isDarkMode, dynamicColor = false) {
         Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
           V2RayScreen(
             viewModel = viewModel,

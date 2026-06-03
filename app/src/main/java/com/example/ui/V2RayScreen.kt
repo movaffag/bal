@@ -20,7 +20,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -37,6 +39,272 @@ import com.example.data.SubscriptionEntity
 import com.example.data.V2RayNodeEntity
 import com.example.ui.theme.*
 import kotlinx.coroutines.delay
+
+data class BentoColors(
+    val bg: Color,
+    val textPrimary: Color,
+    val accentBlue: Color,
+    val highlightLightBlue: Color,
+    val cardSecondary: Color,
+    val textOnHighlight: Color,
+    val textDarkSlate: Color,
+    val textMuted: Color,
+    val border: Color,
+    val lightGrayBg: Color
+)
+
+fun getBentoColors(darkTheme: Boolean): BentoColors {
+    return if (darkTheme) {
+        BentoColors(
+            bg = Color(0xFF0C0C0F), // Deep space black slate canvas
+            textPrimary = Color(0xFFF2F2F7),
+            accentBlue = Color(0xFF3393FF), // Luminous neon tech blue
+            highlightLightBlue = Color(0xFF14223C), // Muted dark blue highlight
+            cardSecondary = Color(0xFF18191E), // High-elevation card backing
+            textOnHighlight = Color(0xFFE5F1FF),
+            textDarkSlate = Color(0xFFC5C6D1),
+            textMuted = Color(0xFF8E909B),
+            border = Color(0xFF28292E),
+            lightGrayBg = Color(0xFF14151B)
+        )
+    } else {
+        BentoColors(
+            bg = Color(0xFFF7F8FC), // Clean bright elegant bento grid canvas
+            textPrimary = Color(0xFF1B1B1F),
+            accentBlue = Color(0xFF0061A4),
+            highlightLightBlue = Color(0xFFD1E4FF),
+            cardSecondary = Color(0xFFE1E2EC),
+            textOnHighlight = Color(0xFF001D36),
+            textDarkSlate = Color(0xFF44474E),
+            textMuted = Color(0xFF74777F),
+            border = Color(0xFFDCDCE5),
+            lightGrayBg = Color(0xFFF0F0F7)
+        )
+    }
+}
+
+fun Modifier.bento3D(
+    enabled: Boolean,
+    containerColor: Color,
+    borderColor: Color = Color(0xFF1B1B1F),
+    depth: androidx.compose.ui.unit.Dp = 5.dp,
+    cornerRadius: androidx.compose.ui.unit.Dp = 24.dp
+): Modifier {
+    if (!enabled) {
+        return this
+            .border(1.dp, borderColor.copy(alpha = 0.3f), RoundedCornerShape(cornerRadius))
+            .background(containerColor, RoundedCornerShape(cornerRadius))
+            .clip(RoundedCornerShape(cornerRadius))
+    }
+    return this
+        .drawBehind {
+            val strokeWidthPx = 1.5.dp.toPx()
+            val depthPx = depth.toPx()
+            val cornerRadiusPx = cornerRadius.toPx()
+            
+            // 1. Draw 3D Underlayer Shadow
+            drawRoundRect(
+                color = borderColor,
+                topLeft = androidx.compose.ui.geometry.Offset(depthPx, depthPx),
+                size = androidx.compose.ui.geometry.Size(size.width - depthPx, size.height - depthPx),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx, cornerRadiusPx)
+            )
+            
+            // 2. Draw foreground surface fill
+            drawRoundRect(
+                color = containerColor,
+                topLeft = androidx.compose.ui.geometry.Offset.Zero,
+                size = androidx.compose.ui.geometry.Size(size.width - depthPx, size.height - depthPx),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx, cornerRadiusPx)
+            )
+            
+            // 3. Draw surrounding border stroke
+            drawRoundRect(
+                color = borderColor,
+                topLeft = androidx.compose.ui.geometry.Offset.Zero,
+                size = androidx.compose.ui.geometry.Size(size.width - depthPx, size.height - depthPx),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(cornerRadiusPx, cornerRadiusPx),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidthPx)
+            )
+        }
+        .padding(bottom = depth, end = depth)
+}
+
+@Composable
+fun SettingsBentoPanel(
+    viewModel: V2ViewModel,
+    colors: BentoColors,
+    isThreeDMode: Boolean
+) {
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val isFullTunnel by viewModel.isFullTunnel.collectAsStateWithLifecycle()
+    val pingTarget by viewModel.pingTarget.collectAsStateWithLifecycle()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .bento3D(isThreeDMode, colors.cardSecondary, colors.textPrimary, cornerRadius = 24.dp)
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "تنظیمات هوشمند و شخصی‌سازی",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = colors.accentBlue
+            )
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = colors.accentBlue.copy(alpha = 0.15f)
+            ) {
+                Text(
+                    text = "BENTO Pro",
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accentBlue,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Row 1: Quick toggles for skins and tunnels
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Sun/Moon mode selector
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .bento3D(isThreeDMode, if (isDarkMode) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
+                    .clickable { viewModel.toggleDarkMode() },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (isDarkMode) "☀️" else "🌙",
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = if (isDarkMode) "تم روشن" else "تم تاریک",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                }
+            }
+
+            // 3D Depth Toggle
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .bento3D(isThreeDMode, if (isThreeDMode) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
+                    .clickable { viewModel.toggleThreeDMode() },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (isThreeDMode) "📦" else "📄",
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "تم 3D",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isThreeDMode) colors.accentBlue else colors.textPrimary
+                    )
+                }
+            }
+
+            // Split/Full Tunnel Mode Toggle
+            Box(
+                modifier = Modifier
+                    .weight(1.3f)
+                    .height(44.dp)
+                    .bento3D(isThreeDMode, if (isFullTunnel) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
+                    .clickable { viewModel.toggleFullTunnel() },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (isFullTunnel) "🌐" else "📱",
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = if (isFullTunnel) "تانل کامل" else "پروکسی مرورگر",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Row 2: Target Ping Selector
+        Text(
+            text = "مبنای سنجش پینگ سرورها (بهینه‌سازی بر اساس سرویس):",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.textDarkSlate,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            PingTarget.values().forEach { target ->
+                val isSelected = pingTarget == target
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(34.dp)
+                        .bento3D(
+                            isThreeDMode, 
+                            if (isSelected) colors.accentBlue else colors.lightGrayBg, 
+                            colors.textPrimary, 
+                            depth = if (isSelected) 2.dp else 1.dp, 
+                            cornerRadius = 8.dp
+                        )
+                        .clickable { viewModel.setPingTarget(target) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    val label = when(target) {
+                        PingTarget.DIRECT -> "مستقیم"
+                        PingTarget.YOUTUBE -> "یوتیوب"
+                        PingTarget.INSTAGRAM -> "اینستاگرام"
+                        PingTarget.AI_SERVICES -> "هوش مصنوعی"
+                    }
+                    Text(
+                        text = label,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) Color.White else colors.textPrimary
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun V2RayScreen(
@@ -57,12 +325,19 @@ fun V2RayScreen(
     val totalDownloaded by viewModel.totalDownloadedMb.collectAsStateWithLifecycle()
     val totalUploaded by viewModel.totalUploadedMb.collectAsStateWithLifecycle()
 
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val isThreeDMode by viewModel.isThreeDMode.collectAsStateWithLifecycle()
+    val isFullTunnel by viewModel.isFullTunnel.collectAsStateWithLifecycle()
+    val pingTarget by viewModel.pingTarget.collectAsStateWithLifecycle()
+
+    val colors = getBentoColors(isDarkMode)
+
     var showSubManager by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(BentoBg)
+            .background(colors.bg)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -73,10 +348,11 @@ fun V2RayScreen(
         ) {
             // Header Block
             HeaderView(
-                onManageSubsClicked = { showSubManager = true }
+                onManageSubsClicked = { showSubManager = true },
+                colors = colors
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Active Connection Card (Bento Height 160.dp)
             ActiveConnectionCard(
@@ -87,10 +363,21 @@ fun V2RayScreen(
                 uploadSpeed = upSpeed,
                 totalDownloaded = totalDownloaded,
                 totalUploaded = totalUploaded,
-                onDisconnect = { viewModel.disconnect() }
+                onDisconnect = { viewModel.disconnect() },
+                colors = colors,
+                isThreeDMode = isThreeDMode
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Control panel
+            SettingsBentoPanel(
+                viewModel = viewModel,
+                colors = colors,
+                isThreeDMode = isThreeDMode
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Bento Grid Metrics Row (Next ping & Total Nodes)
             MetricsBentoGrid(
@@ -99,10 +386,12 @@ fun V2RayScreen(
                 isPinging = isPinging,
                 pingProgress = pingProgress,
                 activeSubsCount = subscriptions.size,
-                onForcePing = { viewModel.triggerPingSweep() }
+                onForcePing = { viewModel.triggerPingSweep() },
+                colors = colors,
+                isThreeDMode = isThreeDMode
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // List Title
             Row(
@@ -113,9 +402,9 @@ fun V2RayScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "OPTIMAL NODES / سرورهای برتر",
+                    text = "OPTIMAL NODES / سرورها بر اساس ${pingTarget.displayName}",
                     style = MaterialTheme.typography.labelLarge.copy(
-                        color = BentoTextDarkSlate,
+                        color = colors.textDarkSlate,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
@@ -126,13 +415,13 @@ fun V2RayScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(14.dp),
                             strokeWidth = 2.dp,
-                            color = BentoAccentBlue
+                            color = colors.accentBlue
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "${pingProgress.first}/${pingProgress.second}",
                             fontSize = 11.sp,
-                            color = BentoAccentBlue,
+                            color = colors.accentBlue,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -140,7 +429,7 @@ fun V2RayScreen(
                     Text(
                         text = "مرتب‌سازی خودکار",
                         fontSize = 11.sp,
-                        color = BentoTextMuted,
+                        color = colors.textMuted,
                         fontWeight = FontWeight.Normal
                     )
                 }
@@ -167,6 +456,8 @@ fun V2RayScreen(
                                 node = node,
                                 isActive = isActive,
                                 connectionState = connectionState,
+                                colors = colors,
+                                isThreeDMode = isThreeDMode,
                                 onClick = {
                                     if (isActive && connectionState == ConnectionState.CONNECTED) {
                                         viewModel.disconnect()
@@ -193,29 +484,30 @@ fun V2RayScreen(
 
 @Composable
 fun HeaderView(
-    onManageSubsClicked: () -> Unit
+    onManageSubsClicked: () -> Unit,
+    colors: BentoColors
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 16.dp),
+            .padding(vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(
-                text = "AUTO-PING V2.0",
+                text = "AUTO-PING V2.5",
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     letterSpacing = 1.5.sp,
-                    color = BentoAccentBlue
+                    color = colors.accentBlue
                 )
             )
             Text(
                 text = "V2Flow Pro",
                 style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = BentoTextPrimary
+                    fontWeight = FontWeight.Black,
+                    color = colors.textPrimary
                 )
             )
         }
@@ -225,13 +517,13 @@ fun HeaderView(
             onClick = onManageSubsClicked,
             modifier = Modifier
                 .clip(CircleShape)
-                .background(BentoCardSecondary)
+                .background(colors.cardSecondary)
                 .testTag("manage_subs_button")
         ) {
             Icon(
                 imageVector = Icons.Default.Settings,
                 contentDescription = "تنظیمات ساب‌لینک‌ها",
-                tint = BentoTextDarkSlate
+                tint = colors.textPrimary
             )
         }
     }
@@ -246,26 +538,27 @@ fun ActiveConnectionCard(
     uploadSpeed: Float,
     totalDownloaded: Float,
     totalUploaded: Float,
-    onDisconnect: () -> Unit
+    onDisconnect: () -> Unit,
+    colors: BentoColors,
+    isThreeDMode: Boolean
 ) {
     val isConnected = connectionState == ConnectionState.CONNECTED
     val isConnecting = connectionState == ConnectionState.CONNECTING
 
-    val cardBg = if (isConnected || isConnecting) BentoHighlightLightBlue else BentoCardSecondary
-    val textColor = if (isConnected || isConnecting) BentoTextOnHighlight else BentoTextPrimary
+    val cardBg = if (isConnected || isConnecting) colors.highlightLightBlue else colors.cardSecondary
+    val textColor = if (isConnected || isConnecting) colors.textPrimary else colors.textPrimary
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(160.dp)
-            .testTag("active_connection_card"),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg)
+            .height(156.dp)
+            .bento3D(isThreeDMode, cardBg, colors.textPrimary, cornerRadius = 28.dp)
+            .testTag("active_connection_card")
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(18.dp)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -280,14 +573,14 @@ fun ActiveConnectionCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = if (isConnected) "اتصال فعال / Active Node" else if (isConnecting) "در حال اتصال به" else "اتصال برقرار نیست",
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = textColor.copy(alpha = 0.7f)
+                            color = textColor.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = activeNode?.name ?: "سرور انتخاب نشده است",
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = textColor,
                             maxLines = 1,
@@ -297,16 +590,16 @@ fun ActiveConnectionCard(
 
                     // Status pill
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isConnected) BentoAccentBlue else if (isConnecting) Color(0xFFF97316) else Color(0x2074777F),
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isConnected) colors.accentBlue else if (isConnecting) Color(0xFFF97316) else colors.textMuted.copy(alpha = 0.25f),
                         modifier = Modifier.padding(start = 8.dp)
                     ) {
                         Text(
-                            text = if (isConnected) "CONNECTED" else if (isConnecting) "CONNECTING" else "DISCONNECTED",
-                            fontSize = 10.sp,
+                            text = if (isConnected) "CONNECTED" else if (isConnecting) "CONNECTING" else "DISOCNNECTED",
+                            fontSize = 8.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (isConnected || isConnecting) Color.White else BentoTextMuted,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            color = if (isConnected || isConnecting) Color.White else colors.textMuted,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
                     }
                 }
@@ -323,48 +616,48 @@ fun ActiveConnectionCard(
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     text = if (activeNode.latencyMs >= 0) "${activeNode.latencyMs}" else "84",
-                                    fontSize = 38.sp,
-                                    fontWeight = FontWeight.Light,
+                                    fontSize = 34.sp,
+                                    fontWeight = FontWeight.Black,
                                     fontStyle = FontStyle.Italic,
                                     color = textColor
                                 )
                                 Text(
                                     text = "ms",
-                                    fontSize = 14.sp,
+                                    fontSize = 12.sp,
                                     color = textColor.copy(alpha = 0.6f),
-                                    modifier = Modifier.padding(bottom = 6.dp, start = 2.dp)
+                                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp)
                                 )
                             }
                             Text(
-                                text = "تاخیر / LATENCY",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor.copy(alpha = 0.5f)
+                                  text = "تاخیر / LATENCY",
+                                  fontSize = 8.sp,
+                                  fontWeight = FontWeight.Bold,
+                                  color = textColor.copy(alpha = 0.5f)
                             )
                         } else if (isConnecting) {
                             Text(
-                                text = "...",
-                                fontSize = 38.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textColor
+                                  text = "...",
+                                  fontSize = 32.sp,
+                                  fontWeight = FontWeight.Bold,
+                                  color = textColor
                             )
                             Text(
-                                text = "برقراری دسترسی",
-                                fontSize = 9.sp,
-                                color = textColor.copy(alpha = 0.7f)
+                                  text = "برقراری دسترسی",
+                                  fontSize = 8.sp,
+                                  color = textColor.copy(alpha = 0.7f)
                             )
                         } else {
                             Text(
-                                text = "0.00",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraLight,
-                                color = BentoTextMuted
+                                  text = "0.00",
+                                  fontSize = 30.sp,
+                                  fontWeight = FontWeight.ExtraLight,
+                                  color = colors.textMuted
                             )
                             Text(
-                                text = "انتخاب یک سرور برای اتصال",
-                                fontSize = 10.sp,
-                                color = BentoTextMuted,
-                                fontWeight = FontWeight.Medium
+                                  text = "انتخاب یک سرور برای اتصال",
+                                  fontSize = 9.sp,
+                                  color = colors.textMuted,
+                                  fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -372,13 +665,13 @@ fun ActiveConnectionCard(
                     // Right element: Animated charts or download speed stats
                     if (isConnected) {
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     text = formatDuration(durationSeconds),
-                                    fontSize = 16.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Monospace,
                                     color = textColor
@@ -386,23 +679,23 @@ fun ActiveConnectionCard(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = "↓ ${formatSpeed(downloadSpeed)}  ↑ ${formatSpeed(uploadSpeed)}",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     color = textColor.copy(alpha = 0.8f),
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = "حجم: ${String.format("%.1f", totalDownloaded)} MB دریافت شده",
-                                    fontSize = 9.sp,
+                                    fontSize = 8.sp,
                                     color = textColor.copy(alpha = 0.6f)
                                 )
                             }
 
                             // Signal bouncing bars
-                            BouncingSignalBars()
+                            BouncingSignalBars(color = colors.accentBlue)
                         }
                     } else if (isConnecting) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(24.dp),
                             strokeWidth = 3.dp,
                             color = Color(0xFFF97316)
                         )
@@ -415,7 +708,7 @@ fun ActiveConnectionCard(
                                         .width(3.dp)
                                         .height((10 + i * 4).dp)
                                         .clip(CircleShape)
-                                        .background(BentoTextMuted.copy(alpha = 0.2f))
+                                        .background(colors.textMuted.copy(alpha = 0.2f))
                                 )
                             }
                         }
@@ -433,20 +726,21 @@ fun MetricsBentoGrid(
     isPinging: Boolean,
     pingProgress: Pair<Int, Int>,
     activeSubsCount: Int,
-    onForcePing: () -> Unit
+    onForcePing: () -> Unit,
+    colors: BentoColors,
+    isThreeDMode: Boolean
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Card 1: Next Auto-Ping Code Box (Width = Weight 1)
-        Card(
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .height(105.dp)
-                .clickable { onForcePing() },
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = BentoCardSecondary)
+                .bento3D(isThreeDMode, colors.cardSecondary, colors.textPrimary, cornerRadius = 24.dp)
+                .clickable { onForcePing() }
         ) {
             Column(
                 modifier = Modifier
@@ -463,13 +757,13 @@ fun MetricsBentoGrid(
                         text = "PING COOLDOWN",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BentoTextDarkSlate,
+                        color = colors.textDarkSlate,
                         letterSpacing = 0.5.sp
                     )
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "اسکن سریع",
-                        tint = if (isPinging) BentoAccentBlue else BentoTextDarkSlate,
+                        tint = if (isPinging) colors.accentBlue else colors.textDarkSlate,
                         modifier = Modifier.size(12.dp)
                     )
                 }
@@ -478,9 +772,9 @@ fun MetricsBentoGrid(
                     Column {
                         Text(
                             text = "پینگ ${pingProgress.first}/${pingProgress.second}",
-                            fontSize = 18.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = BentoAccentBlue
+                            color = colors.accentBlue
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         LinearProgressIndicator(
@@ -493,8 +787,8 @@ fun MetricsBentoGrid(
                                 .fillMaxWidth()
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                            color = BentoAccentBlue,
-                            trackColor = BentoTextMuted.copy(alpha = 0.2f)
+                            color = colors.accentBlue,
+                            trackColor = colors.textMuted.copy(alpha = 0.2f)
                         )
                     }
                 } else {
@@ -504,7 +798,7 @@ fun MetricsBentoGrid(
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = BentoTextPrimary
+                            color = colors.textPrimary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         // Progress of countdown (5 minutes = 300s)
@@ -515,8 +809,8 @@ fun MetricsBentoGrid(
                                 .fillMaxWidth()
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                            color = BentoAccentBlue,
-                            trackColor = BentoTextMuted.copy(alpha = 0.2f)
+                            color = colors.accentBlue,
+                            trackColor = colors.textMuted.copy(alpha = 0.2f)
                         )
                     }
                 }
@@ -524,12 +818,11 @@ fun MetricsBentoGrid(
         }
 
         // Card 2: Total loaded Nodes stats
-        Card(
+        Box(
             modifier = Modifier
                 .weight(1f)
-                .height(105.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = BentoCardSecondary)
+                .height(105.dp)
+                .bento3D(isThreeDMode, colors.cardSecondary, colors.textPrimary, cornerRadius = 24.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -541,7 +834,7 @@ fun MetricsBentoGrid(
                     text = "TOTAL PROXY NODES",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
-                    color = BentoTextDarkSlate,
+                    color = colors.textDarkSlate,
                     letterSpacing = 0.5.sp
                 )
 
@@ -550,13 +843,13 @@ fun MetricsBentoGrid(
                         text = "$totalNodesCount",
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BentoTextPrimary
+                        color = colors.textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "از $activeSubsCount لینک اشتراک",
                         fontSize = 10.sp,
-                        color = BentoTextMuted,
+                        color = colors.textMuted,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -566,7 +859,7 @@ fun MetricsBentoGrid(
 }
 
 @Composable
-fun BouncingSignalBars() {
+fun BouncingSignalBars(color: Color = Color(0xFF0061A4)) {
     val infiniteTransition = rememberInfiniteTransition(label = "bars")
     
     // Animate heights of bar elements
@@ -611,11 +904,11 @@ fun BouncingSignalBars() {
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        Box(modifier = Modifier.width(3.dp).height(barHeight1.dp).clip(CircleShape).background(BentoAccentBlue))
-        Box(modifier = Modifier.width(3.dp).height(barHeight2.dp).clip(CircleShape).background(BentoAccentBlue))
-        Box(modifier = Modifier.width(3.dp).height(barHeight3.dp).clip(CircleShape).background(BentoAccentBlue))
-        Box(modifier = Modifier.width(3.dp).height(barHeight4.dp).clip(CircleShape).background(BentoAccentBlue))
-        Box(modifier = Modifier.width(3.dp).height(12.dp).clip(CircleShape).background(BentoTextOnHighlight.copy(alpha = 0.2f)))
+        Box(modifier = Modifier.width(3.dp).height(barHeight1.dp).clip(CircleShape).background(color))
+        Box(modifier = Modifier.width(3.dp).height(barHeight2.dp).clip(CircleShape).background(color))
+        Box(modifier = Modifier.width(3.dp).height(barHeight3.dp).clip(CircleShape).background(color))
+        Box(modifier = Modifier.width(3.dp).height(barHeight4.dp).clip(CircleShape).background(color))
+        Box(modifier = Modifier.width(3.dp).height(12.dp).clip(CircleShape).background(color.copy(alpha = 0.2f)))
     }
 }
 
@@ -625,19 +918,18 @@ fun NodeListItem(
     node: V2RayNodeEntity,
     isActive: Boolean,
     connectionState: ConnectionState,
+    colors: BentoColors,
+    isThreeDMode: Boolean,
     onClick: () -> Unit
 ) {
-    val itemBorder = if (isActive) BentoAccentBlue else BentoBorder
-    val itemBg = if (isActive) BentoHighlightLightBlue.copy(alpha = 0.2f) else Color.White
+    val itemBg = if (isActive) colors.highlightLightBlue else colors.cardSecondary
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(itemBg)
-            .border(1.dp, itemBorder, RoundedCornerShape(20.dp))
+            .bento3D(isThreeDMode, itemBg, colors.textPrimary, depth = 3.dp, cornerRadius = 20.dp)
             .clickable { onClick() }
-            .padding(14.dp)
+            .padding(12.dp)
             .testTag("node_item"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -651,7 +943,7 @@ fun NodeListItem(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(if (isActive) BentoAccentBlue else BentoLightGrayBg),
+                    .background(if (isActive) colors.accentBlue else colors.lightGrayBg),
                 contentAlignment = Alignment.Center
             ) {
                 if (isActive && connectionState == ConnectionState.CONNECTING) {
@@ -665,7 +957,7 @@ fun NodeListItem(
                         text = "$index",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isActive) Color.White else BentoTextDarkSlate
+                        color = if (isActive) Color.White else colors.textDarkSlate
                     )
                 }
             }
@@ -678,7 +970,7 @@ fun NodeListItem(
                     text = node.name,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = BentoTextPrimary,
+                    color = colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -688,13 +980,13 @@ fun NodeListItem(
                     // Protocol label
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = BentoLightGrayBg,
+                        color = colors.lightGrayBg,
                     ) {
                         Text(
                             text = node.protocol,
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
-                            color = BentoTextMuted,
+                            color = colors.textMuted,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
@@ -702,7 +994,7 @@ fun NodeListItem(
                     Text(
                         text = "${node.address}:${node.port}",
                         fontSize = 10.sp,
-                        color = BentoTextMuted,
+                        color = colors.textMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -722,7 +1014,7 @@ fun NodeListItem(
                     Text(
                         text = "بررسی نشده",
                         fontSize = 11.sp,
-                        color = BentoTextMuted
+                        color = colors.textMuted
                     )
                 }
                 node.latencyMs == -2 -> {
@@ -736,7 +1028,7 @@ fun NodeListItem(
                 }
                 else -> {
                     val color = when {
-                        node.latencyMs < 120 -> Color(0xFF059669) // Emerald Green
+                        node.latencyMs < 120 -> if (isActive) Color(0xFF10B981) else Color(0xFF059669) // Green
                         node.latencyMs < 250 -> Color(0xFFD97706) // Orange
                         else -> Color(0xFFDC2626) // Red
                     }

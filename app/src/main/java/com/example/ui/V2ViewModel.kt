@@ -20,10 +20,61 @@ enum class ConnectionState {
     CONNECTED
 }
 
+enum class PingTarget(val displayName: String) {
+    DIRECT("دستگاه به سرور (Direct)"),
+    YOUTUBE("یوتیوب (YouTube)"),
+    INSTAGRAM("اینستاگرام (Instagram)"),
+    AI_SERVICES("هوش مصنوعی (AI / Gemini)")
+}
+
 class V2ViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = DatabaseProvider.getDatabase(application)
     private val repository = V2Repository(db.v2rayDao())
+    private val prefs = application.getSharedPreferences("v2flow_prefs", android.content.Context.MODE_PRIVATE)
+
+    // SharedPreferences persistent states
+    private val _isDarkMode = MutableStateFlow(prefs.getBoolean("is_dark_mode", true))
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
+    private val _isThreeDMode = MutableStateFlow(prefs.getBoolean("is_threed_mode", false))
+    val isThreeDMode: StateFlow<Boolean> = _isThreeDMode.asStateFlow()
+
+    private val _isFullTunnel = MutableStateFlow(prefs.getBoolean("is_full_tunnel", true))
+    val isFullTunnel: StateFlow<Boolean> = _isFullTunnel.asStateFlow()
+
+    private val _pingTarget = MutableStateFlow(
+        try {
+            PingTarget.valueOf(prefs.getString("ping_target", PingTarget.DIRECT.name) ?: PingTarget.DIRECT.name)
+        } catch (_: Exception) {
+            PingTarget.DIRECT
+        }
+    )
+    val pingTarget: StateFlow<PingTarget> = _pingTarget.asStateFlow()
+
+    fun toggleDarkMode() {
+        val newValue = !_isDarkMode.value
+        _isDarkMode.value = newValue
+        prefs.edit().putBoolean("is_dark_mode", newValue).apply()
+    }
+
+    fun toggleThreeDMode() {
+        val newValue = !_isThreeDMode.value
+        _isThreeDMode.value = newValue
+        prefs.edit().putBoolean("is_threed_mode", newValue).apply()
+    }
+
+    fun toggleFullTunnel() {
+        val newValue = !_isFullTunnel.value
+        _isFullTunnel.value = newValue
+        prefs.edit().putBoolean("is_full_tunnel", newValue).apply()
+    }
+
+    fun setPingTarget(target: PingTarget) {
+        _pingTarget.value = target
+        prefs.edit().putString("ping_target", target.name).apply()
+        triggerPingSweep() // Re-ping on setting change to instantly show target pings!
+    }
 
     // Streams from DB
     val subscriptions: StateFlow<List<SubscriptionEntity>> = repository.subscriptions
@@ -105,7 +156,7 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
             _isPinging.value = true
             _pingProgress.value = Pair(0, allNodes.value.size)
             
-            repository.pingAllNodes(allNodes.value) { completed, total ->
+            repository.pingAllNodes(allNodes.value, target = pingTarget.value.name) { completed, total ->
                 _pingProgress.value = Pair(completed, total)
             }
             
@@ -218,6 +269,7 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
             putExtra(V2RayVpnService.EXTRA_NODE_ADDRESS, node.address)
             putExtra(V2RayVpnService.EXTRA_NODE_PORT, node.port)
             putExtra(V2RayVpnService.EXTRA_NODE_PROTOCOL, node.protocol)
+            putExtra(V2RayVpnService.EXTRA_FULL_TUNNEL, isFullTunnel.value)
         }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

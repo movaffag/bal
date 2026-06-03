@@ -30,6 +30,7 @@ class V2RayVpnService : VpnService() {
         const val EXTRA_NODE_ADDRESS = "node_address"
         const val EXTRA_NODE_PORT = "node_port"
         const val EXTRA_NODE_PROTOCOL = "node_protocol"
+        const val EXTRA_FULL_TUNNEL = "is_full_tunnel"
         
         private const val CHANNEL_ID = "v2flow_vpn_channel"
         private const val NOTIFICATION_ID = 4821
@@ -56,6 +57,7 @@ class V2RayVpnService : VpnService() {
                     val address = intent.getStringExtra(EXTRA_NODE_ADDRESS) ?: "127.0.0.1"
                     val port = intent.getIntExtra(EXTRA_NODE_PORT, 443)
                     val protocol = intent.getStringExtra(EXTRA_NODE_PROTOCOL) ?: "vmess"
+                    val isFullTunnel = intent.getBooleanExtra(EXTRA_FULL_TUNNEL, true)
                     
                     // Create dummy node for local reference
                     val node = V2RayNodeEntity(
@@ -69,8 +71,8 @@ class V2RayVpnService : VpnService() {
                         latencyMs = 0
                     )
                     
-                    Log.i("V2RayVpnService", "Starting VPN session on config: $nodeName ($address:$port)")
-                    startVpn(node)
+                    Log.i("V2RayVpnService", "Starting VPN session on config: $nodeName ($address:$port), fullTunnel: $isFullTunnel")
+                    startVpn(node, isFullTunnel)
                 }
                 ACTION_DISCONNECT -> {
                     Log.i("V2RayVpnService", "Stopping VPN session")
@@ -81,7 +83,7 @@ class V2RayVpnService : VpnService() {
         return START_NOT_STICKY
     }
 
-    private fun startVpn(node: V2RayNodeEntity) {
+    private fun startVpn(node: V2RayNodeEntity, isFullTunnel: Boolean) {
         if (isRunning.get()) {
             stopVpn()
         }
@@ -109,8 +111,35 @@ class V2RayVpnService : VpnService() {
                 .addAddress("fd00:26:26::2", 64)
                 .addDnsServer("1.1.1.1")
                 .addDnsServer("8.8.8.8")
-                .addRoute("0.0.0.0", 0) // Route all device IPv4 traffic through the VPN
-                .addRoute("::", 0)       // Route all device IPv6 traffic through the VPN
+
+            if (isFullTunnel) {
+                builder.addRoute("0.0.0.0", 0) // Route all device IPv4 traffic through the VPN
+                builder.addRoute("::", 0)       // Route all device IPv6 traffic through the VPN
+                Log.i("V2RayVpnService", "Routing option: Full Tunnel (All traffic)")
+            } else {
+                // Proxy Only Mode: Route web browser applications specifically to bypass system tools
+                val browsers = listOf(
+                    "com.android.chrome",
+                    "org.mozilla.firefox",
+                    "com.opera.browser",
+                    "com.microsoft.emmx",
+                    "com.sec.android.app.sbrowser"
+                )
+                var addedAny = false
+                for (browser in browsers) {
+                    try {
+                        builder.addAllowedApplication(browser)
+                        addedAny = true
+                    } catch (_: Exception) {
+                        // Package not installed, skip safely
+                    }
+                }
+                if (!addedAny) {
+                    // Fallback to route virtual routing segment if no browser found, or full route
+                    builder.addRoute("0.0.0.0", 0)
+                }
+                Log.i("V2RayVpnService", "Routing option: Proxy Only (Browsers), addedAny: $addedAny")
+            }
 
             // Disallow our own app so we don't intercept our own pings or backend connections, 
             // preventing recursive loops! Extremely vital for proper VPN behavior.
