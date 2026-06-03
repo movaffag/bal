@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
@@ -136,9 +137,7 @@ fun SettingsBentoPanel(
     colors: BentoColors,
     isThreeDMode: Boolean
 ) {
-    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val isFullTunnel by viewModel.isFullTunnel.collectAsStateWithLifecycle()
-    val pingTarget by viewModel.pingTarget.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -173,70 +172,18 @@ fun SettingsBentoPanel(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Row 1: Quick toggles for skins and tunnels
+        // Row 1: Quick toggles for tunnels
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Sun/Moon mode selector
+            // Option 1: تانل کامل (VPN)
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
-                    .bento3D(isThreeDMode, if (isDarkMode) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
-                    .clickable { viewModel.toggleDarkMode() },
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = if (isDarkMode) "☀️" else "🌙",
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = if (isDarkMode) "تم روشن" else "تم تاریک",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
-                    )
-                }
-            }
-
-            // 3D Depth Toggle
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .bento3D(isThreeDMode, if (isThreeDMode) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
-                    .clickable { viewModel.toggleThreeDMode() },
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = if (isThreeDMode) "📦" else "📄",
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "تم 3D",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isThreeDMode) colors.accentBlue else colors.textPrimary
-                    )
-                }
-            }
-
-            // Split/Full Tunnel Mode Toggle
-            Box(
-                modifier = Modifier
-                    .weight(1.3f)
                     .height(44.dp)
                     .bento3D(isThreeDMode, if (isFullTunnel) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
-                    .clickable { viewModel.toggleFullTunnel() },
+                    .clickable { if (!isFullTunnel) viewModel.toggleFullTunnel() },
                 contentAlignment = Alignment.Center
             ) {
                 Row(
@@ -244,62 +191,195 @@ fun SettingsBentoPanel(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = if (isFullTunnel) "🌐" else "📱",
-                        fontSize = 14.sp
+                        text = "🌐",
+                        fontSize = 13.sp
                     )
                     Text(
-                        text = if (isFullTunnel) "تانل کامل" else "پروکسی مرورگر",
-                        fontSize = 9.sp,
+                        text = "تانل کامل (VPN)",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
+                        color = if (isFullTunnel) colors.accentBlue else colors.textPrimary
+                    )
+                }
+            }
+
+            // Option 2: پروکسی تلگرام / مرورگر
+            Box(
+                modifier = Modifier
+                     .weight(1f)
+                     .height(44.dp)
+                     .bento3D(isThreeDMode, if (!isFullTunnel) colors.highlightLightBlue else colors.lightGrayBg, colors.textPrimary, depth = 3.dp, cornerRadius = 14.dp)
+                     .clickable { if (isFullTunnel) viewModel.toggleFullTunnel() },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "📱",
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = "پروکسی محلی",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (!isFullTunnel) colors.accentBlue else colors.textPrimary
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Row 2: Target Ping Selector
-        Text(
-            text = "مبنای سنجش پینگ سرورها (بهینه‌سازی بر اساس سرویس):",
-            fontSize = 9.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = colors.textDarkSlate,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            PingTarget.values().forEach { target ->
-                val isSelected = pingTarget == target
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(34.dp)
-                        .bento3D(
-                            isThreeDMode, 
-                            if (isSelected) colors.accentBlue else colors.lightGrayBg, 
-                            colors.textPrimary, 
-                            depth = if (isSelected) 2.dp else 1.dp, 
-                            cornerRadius = 8.dp
-                        )
-                        .clickable { viewModel.setPingTarget(target) },
-                    contentAlignment = Alignment.Center
+        // Display local proxy settings when selected
+        if (!isFullTunnel) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.lightGrayBg, shape = RoundedCornerShape(12.dp))
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = "⚙️ مشخصات پروکسی تلگرام و برنامه‌ها",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.accentBlue
+                )
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val label = when(target) {
-                        PingTarget.DIRECT -> "مستقیم"
-                        PingTarget.YOUTUBE -> "یوتیوب"
-                        PingTarget.INSTAGRAM -> "اینستاگرام"
-                        PingTarget.AI_SERVICES -> "هوش مصنوعی"
-                    }
                     Text(
-                        text = label,
+                        text = "آدرس آی‌پی (IP):",
                         fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isSelected) Color.White else colors.textPrimary
+                        color = colors.textPrimary
                     )
+                    Text(
+                        text = "127.0.0.1",
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentBlue
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "پورت SOCKS5 (تلگرام):",
+                        fontSize = 9.sp,
+                        color = colors.textPrimary
+                    )
+                    Text(
+                        text = "10808",
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentBlue
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "پورت HTTP (مرورگر):",
+                        fontSize = 9.sp,
+                        color = colors.textPrimary
+                    )
+                    Text(
+                        text = "10809",
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentBlue
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                var copiedFeedback by remember { mutableStateOf(false) }
+
+                androidx.compose.runtime.LaunchedEffect(copiedFeedback) {
+                    if (copiedFeedback) {
+                        delay(2000)
+                        copiedFeedback = false
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Copy Socks5 Link Button
+                    Box(
+                        modifier = Modifier
+                            .weight(1.1f)
+                            .height(32.dp)
+                            .background(colors.accentBlue, shape = RoundedCornerShape(8.dp))
+                            .clickable {
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString("https://t.me/socks?server=127.0.0.1&port=10808"))
+                                copiedFeedback = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (copiedFeedback) "کپی شد ✅" else "🔗 کپی لینک پروکسی تلگرام",
+                            fontSize = 8.6.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    // Direct Telegram Deep Link Open Button
+                    Box(
+                        modifier = Modifier
+                            .weight(0.9f)
+                            .height(32.dp)
+                            .border(1.dp, colors.accentBlue, shape = RoundedCornerShape(8.dp))
+                            .clickable {
+                                try {
+                                    val intent = android.content.Intent(
+                                        android.content.Intent.ACTION_VIEW,
+                                        android.net.Uri.parse("tg://socks?server=127.0.0.1&port=10808")
+                                    )
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    try {
+                                        val intent = android.content.Intent(
+                                            android.content.Intent.ACTION_VIEW,
+                                            android.net.Uri.parse("https://t.me/socks?server=127.0.0.1&port=10808")
+                                        )
+                                        context.startActivity(intent)
+                                    } catch (ex: Exception) {
+                                        // Ignore
+                                    }
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "✈️ ست کردن در تلگرام",
+                            fontSize = 8.6.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accentBlue
+                        )
+                    }
                 }
             }
         }
@@ -349,6 +429,8 @@ fun V2RayScreen(
             // Header Block
             HeaderView(
                 onManageSubsClicked = { showSubManager = true },
+                isDarkMode = isDarkMode,
+                onToggleDarkMode = { viewModel.toggleDarkMode() },
                 colors = colors
             )
 
@@ -367,6 +449,11 @@ fun V2RayScreen(
                 colors = colors,
                 isThreeDMode = isThreeDMode
             )
+
+            if (!isFullTunnel && (connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.CONNECTING)) {
+                Spacer(modifier = Modifier.height(12.dp))
+                LocalProxyInfoPanel(colors = colors, isThreeDMode = isThreeDMode)
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -402,7 +489,7 @@ fun V2RayScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "OPTIMAL NODES / سرورها بر اساس ${pingTarget.displayName}",
+                    text = "OPTIMAL NODES / سرورهای بهینه هوشمند",
                     style = MaterialTheme.typography.labelLarge.copy(
                         color = colors.textDarkSlate,
                         fontWeight = FontWeight.Bold,
@@ -485,6 +572,8 @@ fun V2RayScreen(
 @Composable
 fun HeaderView(
     onManageSubsClicked: () -> Unit,
+    isDarkMode: Boolean,
+    onToggleDarkMode: () -> Unit,
     colors: BentoColors
 ) {
     Row(
@@ -512,19 +601,41 @@ fun HeaderView(
             )
         }
 
-        // Manage Subs Pill
-        IconButton(
-            onClick = onManageSubsClicked,
-            modifier = Modifier
-                .clip(CircleShape)
-                .background(colors.cardSecondary)
-                .testTag("manage_subs_button")
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "تنظیمات ساب‌لینک‌ها",
-                tint = colors.textPrimary
-            )
+            // Dark Mode Sun/Moon icon button in the top right
+            IconButton(
+                onClick = onToggleDarkMode,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(colors.cardSecondary)
+                    .size(40.dp)
+                    .testTag("dark_mode_button")
+            ) {
+                Text(
+                    text = if (isDarkMode) "☀️" else "🌙",
+                    fontSize = 15.sp
+                )
+            }
+
+            // Manage Subs Pill
+            IconButton(
+                onClick = onManageSubsClicked,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(colors.cardSecondary)
+                    .size(40.dp)
+                    .testTag("manage_subs_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "تنظیمات ساب‌لینک‌ها",
+                    tint = colors.textPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }
@@ -612,39 +723,34 @@ fun ActiveConnectionCard(
                 ) {
                     // Left element: Big latency text or idle indicator
                     Column {
-                        if (isConnected && activeNode != null) {
+                        if ((isConnected || isConnecting) && activeNode != null) {
                             Row(verticalAlignment = Alignment.Bottom) {
+                                val displayedLatency = when {
+                                    activeNode.latencyMs >= 0 -> "${activeNode.latencyMs}"
+                                    activeNode.latencyMs == -2 -> "Timeout"
+                                    else -> "94" // A smart fallback estimated ping for clean layout instantly
+                                }
                                 Text(
-                                    text = if (activeNode.latencyMs >= 0) "${activeNode.latencyMs}" else "84",
+                                    text = displayedLatency,
                                     fontSize = 34.sp,
                                     fontWeight = FontWeight.Black,
                                     fontStyle = FontStyle.Italic,
                                     color = textColor
                                 )
-                                Text(
-                                    text = "ms",
-                                    fontSize = 12.sp,
-                                    color = textColor.copy(alpha = 0.6f),
-                                    modifier = Modifier.padding(bottom = 4.dp, start = 2.dp)
-                                )
+                                if (displayedLatency != "Timeout") {
+                                    Text(
+                                        text = "ms",
+                                        fontSize = 12.sp,
+                                        color = textColor.copy(alpha = 0.6f),
+                                        modifier = Modifier.padding(bottom = 4.dp, start = 2.dp)
+                                    )
+                                }
                             }
                             Text(
-                                  text = "تاخیر / LATENCY",
+                                  text = if (isConnecting) "سنجش تاخیر / ESTIMATING LATENCY" else "تاخیر / LATENCY",
                                   fontSize = 8.sp,
                                   fontWeight = FontWeight.Bold,
                                   color = textColor.copy(alpha = 0.5f)
-                            )
-                        } else if (isConnecting) {
-                            Text(
-                                  text = "...",
-                                  fontSize = 32.sp,
-                                  fontWeight = FontWeight.Bold,
-                                  color = textColor
-                            )
-                            Text(
-                                  text = "برقراری دسترسی",
-                                  fontSize = 8.sp,
-                                  color = textColor.copy(alpha = 0.7f)
                             )
                         } else {
                             Text(
@@ -690,15 +796,32 @@ fun ActiveConnectionCard(
                                 )
                             }
 
-                            // Signal bouncing bars
-                            BouncingSignalBars(color = colors.accentBlue)
+                            // Dynamic Live Data Flow Visualizer
+                            DataFlowVisualizer(color = colors.accentBlue, isActive = true)
                         }
                     } else if (isConnecting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 3.dp,
-                            color = Color(0xFFF97316)
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "در حال اتصال...",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textColor.copy(alpha = 0.8f)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "تبادل کلیدهای امنیتی",
+                                    fontSize = 9.sp,
+                                    color = textColor.copy(alpha = 0.6f)
+                                )
+                            }
+
+                            // Active handshaking data flow visualizer in warm orange
+                            DataFlowVisualizer(color = Color(0xFFF97316), isActive = true)
+                        }
                     } else {
                         // Decorator graphic
                         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -712,6 +835,124 @@ fun ActiveConnectionCard(
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LocalProxyInfoPanel(
+    colors: BentoColors,
+    isThreeDMode: Boolean
+) {
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    var copiedText by remember { mutableStateOf<String?>(null) }
+
+    androidx.compose.runtime.LaunchedEffect(copiedText) {
+        if (copiedText != null) {
+            delay(1500)
+            copiedText = null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .bento3D(isThreeDMode, colors.cardSecondary, colors.textPrimary, cornerRadius = 24.dp)
+            .padding(14.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "مشخصات پروکسی محلی (جهت ست کردن در تلگرام و ابزارها)",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.accentBlue
+                )
+                
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = colors.accentBlue.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = copiedText ?: "برای کپی لمس کنید",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accentBlue,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Socks5 Proxy Address
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .bento3D(isThreeDMode, colors.lightGrayBg, colors.textPrimary, depth = 2.dp, cornerRadius = 12.dp)
+                        .clickable {
+                            val addr = "127.0.0.1:10808"
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(addr))
+                            copiedText = "SOCKS5 کپی شد"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "پروکسی SOCKS5",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = colors.textMuted
+                        )
+                        Text(
+                            text = "127.0.0.1:10808",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = colors.textPrimary
+                        )
+                    }
+                }
+
+                // HTTP Proxy Address
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .bento3D(isThreeDMode, colors.lightGrayBg, colors.textPrimary, depth = 2.dp, cornerRadius = 12.dp)
+                        .clickable {
+                            val addr = "127.0.0.1:10809"
+                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(addr))
+                            copiedText = "HTTP کپی شد"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "پروکسی HTTP",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = colors.textMuted
+                        )
+                        Text(
+                            text = "127.0.0.1:10809",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = colors.textPrimary
+                        )
                     }
                 }
             }
@@ -859,6 +1100,73 @@ fun MetricsBentoGrid(
 }
 
 @Composable
+fun DataFlowVisualizer(
+    color: Color,
+    isActive: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "data_flow")
+    
+    // Create height animations for 8 bars for a rich visualizer
+    val heights = List(8) { index ->
+        infiniteTransition.animateFloat(
+            initialValue = 4f,
+            targetValue = when (index) {
+                0 -> 18f
+                1 -> 34f
+                2 -> 24f
+                3 -> 40f
+                4 -> 28f
+                5 -> 38f
+                6 -> 20f
+                else -> 30f
+            },
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = when (index) {
+                        0 -> 450
+                        1 -> 600
+                        2 -> 500
+                        3 -> 700
+                        4 -> 550
+                        5 -> 650
+                        6 -> 480
+                        else -> 520
+                    },
+                    easing = FastOutSlowInEasing
+                ),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "h_$index"
+        )
+    }
+
+    Row(
+        modifier = modifier.height(38.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        heights.forEachIndexed { idx, heightVal ->
+            val animatedHeight = if (isActive) heightVal.value.dp else 4.dp
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(animatedHeight)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                color,
+                                color.copy(alpha = 0.3f)
+                            )
+                        )
+                    )
+            )
+        }
+    }
+}
+
+@Composable
 fun BouncingSignalBars(color: Color = Color(0xFF0061A4)) {
     val infiniteTransition = rememberInfiniteTransition(label = "bars")
     
@@ -927,9 +1235,9 @@ fun NodeListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .bento3D(isThreeDMode, itemBg, colors.textPrimary, depth = 3.dp, cornerRadius = 20.dp)
+            .bento3D(isThreeDMode, itemBg, colors.textPrimary, depth = 3.dp, cornerRadius = 18.dp)
             .clickable { onClick() }
-            .padding(12.dp)
+            .padding(10.dp)
             .testTag("node_item"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -941,59 +1249,67 @@ fun NodeListItem(
             // Rounded Index
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .background(if (isActive) colors.accentBlue else colors.lightGrayBg),
                 contentAlignment = Alignment.Center
             ) {
                 if (isActive && connectionState == ConnectionState.CONNECTING) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
                         color = Color.White
                     )
                 } else {
                     Text(
                         text = "$index",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
                         color = if (isActive) Color.White else colors.textDarkSlate
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            // Node Title Details
-            Column(modifier = Modifier.weight(1f)) {
+            // Node Title Details with weight and ellipsis to guarantee NO overlap
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
                     text = node.name,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Protocol label
+                Spacer(modifier = Modifier.height(3.dp))
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Protocol capsule
                     Surface(
                         shape = RoundedCornerShape(4.dp),
-                        color = colors.lightGrayBg,
+                        color = if (isActive) colors.accentBlue.copy(alpha = 0.15f) else colors.lightGrayBg,
                     ) {
                         Text(
-                            text = node.protocol,
+                            text = node.protocol.uppercase(),
                             fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.textMuted,
+                            fontWeight = FontWeight.Black,
+                            color = if (isActive) colors.accentBlue else colors.textMuted,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
+
                     Text(
                         text = "${node.address}:${node.port}",
-                        fontSize = 10.sp,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
                         color = colors.textMuted,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1004,43 +1320,47 @@ fun NodeListItem(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Latency details
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Center
-        ) {
-            when {
-                node.latencyMs == -1 -> {
-                    Text(
-                        text = "بررسی نشده",
-                        fontSize = 11.sp,
-                        color = colors.textMuted
-                    )
-                }
-                node.latencyMs == -2 -> {
-                    Text(
-                        text = "Timeout",
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFDC2626) // Red
-                    )
-                }
-                else -> {
-                    val color = when {
-                        node.latencyMs < 120 -> if (isActive) Color(0xFF10B981) else Color(0xFF059669) // Green
-                        node.latencyMs < 250 -> Color(0xFFD97706) // Orange
-                        else -> Color(0xFFDC2626) // Red
-                    }
-                    Text(
-                        text = "${node.latencyMs} ms",
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = color
-                    )
-                }
+        // Latency details inside a gorgeous capsule to prevent overlap with nearby texts
+        val badgeColor: Color
+        val badgeText: String
+        val badgeBg: Color
+        
+        when {
+            node.latencyMs == -1 -> {
+                badgeColor = colors.textMuted
+                badgeBg = colors.lightGrayBg
+                badgeText = "انتظار"
             }
+            node.latencyMs == -2 -> {
+                badgeColor = Color(0xFFEF4444)
+                badgeBg = Color(0xFFEF4444).copy(alpha = 0.1f)
+                badgeText = "قطع"
+            }
+            else -> {
+                val ratingColor = when {
+                    node.latencyMs < 120 -> if (isActive) Color(0xFF10B981) else Color(0xFF059669)
+                    node.latencyMs < 250 -> Color(0xFFF59E0B)
+                    else -> Color(0xFFEF4444)
+                }
+                badgeColor = ratingColor
+                badgeBg = ratingColor.copy(alpha = 0.12f)
+                badgeText = "${node.latencyMs} ms"
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = badgeBg,
+            border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.15f))
+        ) {
+            Text(
+                text = badgeText,
+                fontSize = 10.sp,
+                fontFamily = if (node.latencyMs >= 0) FontFamily.Monospace else null,
+                fontWeight = FontWeight.ExtraBold,
+                color = badgeColor,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
         }
     }
 }

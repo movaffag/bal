@@ -156,7 +156,7 @@ class V2ViewModel(application: Application) : AndroidViewModel(application) {
             _isPinging.value = true
             _pingProgress.value = Pair(0, allNodes.value.size)
             
-            repository.pingAllNodes(allNodes.value, target = pingTarget.value.name) { completed, total ->
+            repository.pingAllNodes(allNodes.value, target = "SMART") { completed, total ->
                 _pingProgress.value = Pair(completed, total)
             }
             

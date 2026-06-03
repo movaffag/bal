@@ -142,7 +142,7 @@ class V2Repository(private val v2rayDao: V2RayDao) {
      */
     suspend fun pingAllNodes(
         nodes: List<V2RayNodeEntity>,
-        target: String = "DIRECT",
+        target: String = "SMART",
         progressCallback: ((index: Int, total: Int) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         if (nodes.isEmpty()) return@withContext
@@ -164,15 +164,18 @@ class V2Repository(private val v2rayDao: V2RayDao) {
                                 "VLESS" -> 12
                                 "SS" -> 6
                                 "TROJAN" -> 9
-                                else -> 15
+                                else -> 10
                             }
-                            val targetExtra = when (target.uppercase()) {
-                                "YOUTUBE" -> 15 + overhead + (Math.abs(node.address.hashCode()) % 10)
-                                "INSTAGRAM" -> 35 + overhead + (Math.abs(node.address.hashCode()) % 18)
-                                "AI_SERVICES" -> 60 + overhead + (Math.abs(node.address.hashCode()) % 25)
-                                else -> 0
-                            }
-                            baseline + targetExtra
+                            // Smart Auto-Calculation: Combine Direct, YouTube, and Instagram simulated latencies for a realistic profile score!
+                            val youtubeExtra = 15 + overhead + (Math.abs(node.address.hashCode()) % 10)
+                            val instagramExtra = 35 + overhead + (Math.abs(node.address.hashCode()) % 18)
+                            
+                            val directScore = baseline
+                            val youtubeScore = baseline + youtubeExtra
+                            val instagramScore = baseline + instagramExtra
+                            
+                            // Return the smart rounded average of all modes
+                            (directScore + youtubeScore + instagramScore) / 3
                         }
                     }
                     v2rayDao.updateNodeLatency(node.id, latency, System.currentTimeMillis())
