@@ -1,0 +1,6 @@
+{
+  "name": "V2Flow Pro",
+  "description": "A Bento-style V2Ray subscription ping and connection manager. Auto-pings proxy nodes every 5 minutes and lists the best latency paths.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
