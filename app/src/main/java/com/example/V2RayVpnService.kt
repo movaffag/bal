@@ -95,8 +95,13 @@ class V2RayVpnService : VpnService() {
 
         // Create foreground notification
         val notification = buildNotification("در حال اتصال...")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        if (Build.VERSION.SDK_INT >= 34) {
+            try {
+                startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            } catch (e: Exception) {
+                Log.e("V2RayVpnService", "Failed to start foreground with specialUse, falling back", e)
+                startForeground(NOTIFICATION_ID, notification)
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -108,13 +113,28 @@ class V2RayVpnService : VpnService() {
                 .setMtu(1500)
                 // Add secure private routing addresses (IPv4 & IPv6 local scopes)
                 .addAddress("10.26.26.2", 24)
-                .addAddress("fd00:26:26::2", 64)
-                .addDnsServer("1.1.1.1")
-                .addDnsServer("8.8.8.8")
+            
+            try {
+                builder.addAddress("fd00:26:26::2", 64)
+            } catch (e: Exception) {
+                Log.w("V2RayVpnService", "Failed to add IPv6 address, skipping", e)
+            }
+
+            builder.addDnsServer("1.1.1.1")
+            builder.addDnsServer("8.8.8.8")
 
             if (isFullTunnel) {
-                builder.addRoute("0.0.0.0", 0) // Route all device IPv4 traffic through the VPN
-                builder.addRoute("::", 0)       // Route all device IPv6 traffic through the VPN
+                try {
+                    builder.addRoute("0.0.0.0", 0) // Route all device IPv4 traffic through the VPN
+                } catch (e: Exception) {
+                    Log.e("V2RayVpnService", "Failed to add IPv4 route", e)
+                }
+                
+                try {
+                    builder.addRoute("::", 0)       // Route all device IPv6 traffic through the VPN
+                } catch (e: Exception) {
+                    Log.w("V2RayVpnService", "Failed to add IPv6 route, skipping", e)
+                }
                 Log.i("V2RayVpnService", "Routing option: Full Tunnel (All traffic)")
             } else {
                 // Proxy Only Mode: Route web browser applications specifically to bypass system tools
@@ -136,14 +156,22 @@ class V2RayVpnService : VpnService() {
                 }
                 if (!addedAny) {
                     // Fallback to route virtual routing segment if no browser found, or full route
-                    builder.addRoute("0.0.0.0", 0)
+                    try {
+                        builder.addRoute("0.0.0.0", 0)
+                    } catch (e: Exception) {
+                        Log.e("V2RayVpnService", "Failed to add fallback route", e)
+                    }
                 }
                 Log.i("V2RayVpnService", "Routing option: Proxy Only (Browsers), addedAny: $addedAny")
             }
 
             // Disallow our own app so we don't intercept our own pings or backend connections, 
             // preventing recursive loops! Extremely vital for proper VPN behavior.
-            builder.addDisallowedApplication(packageName)
+            try {
+                builder.addDisallowedApplication(packageName)
+            } catch (e: Exception) {
+                Log.e("V2RayVpnService", "Failed to disallow own package name", e)
+            }
 
             vpnInterface = builder.establish()
 
